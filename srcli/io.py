@@ -12,16 +12,13 @@ from PIL import Image
 def load_image(path):
   """Load an image as a float tensor in the 0..1 range.
 
-  The tensor is shaped (1, channels, height, width) to match what the network
-  expects. An alpha channel, if present, is kept rather than dropped so
-  transparent regions survive the round trip; the caller decides what to do
-  with it.
+  The tensor is always (1, 3, height, width). Every input is converted to three
+  channel RGB because the networks are trained on colour and cannot consume an
+  alpha channel, a palette index or a CMYK split. A transparent image is
+  therefore flattened onto its own pixels, with the alpha discarded rather than
+  silently mistaken for a colour channel.
   """
-  image = Image.open(path)
-  # Anything that is not already RGB or RGBA (palette, greyscale, CMYK) is
-  # converted, since the network is trained on three channel colour.
-  if image.mode not in ("RGB", "RGBA"):
-    image = image.convert("RGB")
+  image = Image.open(path).convert("RGB")
   array = np.asarray(image).astype(np.float32) / 255.0
   # PIL gives (H, W, C); torch wants (C, H, W), so move the last axis first.
   tensor = torch.from_numpy(array).permute(2, 0, 1).unsqueeze(0)

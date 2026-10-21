@@ -27,3 +27,25 @@ def test_select_chains_models_to_reach_a_large_factor():
 def test_select_plan_reports_resize_only_when_needed():
   assert select.select(2)["needs_resize"] is False
   assert select.select(2.5)["needs_resize"] is True
+
+
+def test_select_never_picks_a_specialised_model_by_default():
+  # A routine request must never be handed to the anime model, however large the
+  # factor is, because it is not tagged as a general purpose model.
+  for target in (2, 3, 4, 8, 10, 16):
+    plan = select.select(target)
+    assert "realesrgan-x4plus-anime" not in plan["models"]
+
+
+def test_select_uses_only_general_models_when_chaining():
+  # Chaining must reuse the same general purpose model rather than drifting into
+  # a different family partway through.
+  plan = select.select(10)
+  assert plan["models"] == ["realesrgan-x4plus", "realesrgan-x4plus"]
+  assert plan["factor"] == 16
+
+
+def test_select_opts_into_a_specialised_model_when_tagged():
+  # Asking for the anime tag explicitly is the only way it gets selected.
+  plan = select.select(4, tags=["anime"])
+  assert plan["models"] == ["realesrgan-x4plus-anime"]

@@ -218,25 +218,6 @@ Format the code:
 yapf -i -r --style .style.yapf srcli tests
 ```
 
-### Project layout
-
-```
-srcli/
-├── cli.py          Command line entry point and the models subcommand.
-├── pipeline.py     Orchestration: load, pad, infer, crop, resample.
-├── geometry.py     Pure geometry: padding, tiling grid and crop boxes.
-├── tiling.py       Tiled inference with feathered seam blending.
-├── io.py           Image loading and saving.
-├── device.py       Device and dtype selection.
-└── models/
-    ├── registry.py  The model catalog.
-    ├── builders.py  Architecture constructors.
-    ├── sources.py   Weight sources and the download cache.
-    ├── loader.py    Building a model and loading its weights.
-    ├── select.py    Choosing a model, or a chain, for a requested factor.
-    └── rrdbnet.py   The RRDBNet architecture used by Real-ESRGAN.
-```
-
 The geometry, tiling, selection and loader modules are covered by unit tests, and
 the pipeline is exercised end to end with a stand-in model so the tests run
 without downloading weights.

@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "srcli"
+version = "0.1.0"
+description = "Command line super-resolution upscaling tool"
+requires-python = ">=3.9"
+dependencies = [
+  "numpy",
+  "pillow",
+]
+
+[project.optional-dependencies]
+gpu = ["torch"]
+hf = ["huggingface_hub"]
+dev = ["pytest", "yapf"]
+
+[project.scripts]
+sr = "srcli.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["srcli*"]

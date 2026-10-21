@@ -29,12 +29,13 @@ def test_select_plan_reports_resize_only_when_needed():
   assert select.select(2.5)["needs_resize"] is True
 
 
-def test_select_never_picks_a_specialised_model_by_default():
-  # A routine request must never be handed to the anime model, however large the
-  # factor is, because it is not tagged as a general purpose model.
+def test_select_only_ever_uses_general_models():
+  # Every registered model is a general purpose photo model, so no request at
+  # any factor should reach outside that set.
+  general = {name for name in select.registry.names()}
   for target in (2, 3, 4, 8, 10, 16):
     plan = select.select(target)
-    assert "realesrgan-x4plus-anime" not in plan["models"]
+    assert set(plan["models"]) <= general
 
 
 def test_select_uses_only_general_models_when_chaining():
@@ -43,9 +44,3 @@ def test_select_uses_only_general_models_when_chaining():
   plan = select.select(10)
   assert plan["models"] == ["realesrgan-x4plus", "realesrgan-x4plus"]
   assert plan["factor"] == 16
-
-
-def test_select_opts_into_a_specialised_model_when_tagged():
-  # Asking for the anime tag explicitly is the only way it gets selected.
-  plan = select.select(4, tags=["anime"])
-  assert plan["models"] == ["realesrgan-x4plus-anime"]

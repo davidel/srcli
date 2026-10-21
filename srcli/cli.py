@@ -64,11 +64,10 @@ def _build_upscale_parser(subparsers):
       default="auto",
       help="model name, or 'auto' to pick one for the requested factor; "
       "available: {}".format(", ".join(registry.names())))
-  parser.add_argument(
-      "--tag",
-      action="append",
-      dest="tags",
-      help="prefer models with this tag when --model is auto, e.g. anime")
+  parser.add_argument("--tag",
+                      action="append",
+                      dest="tags",
+                      help="prefer models with this tag when --model is auto")
   parser.add_argument("--device", help="compute device: cpu, cuda or mps")
   parser.add_argument("--fp16",
                       action="store_true",

@@ -12,17 +12,17 @@ rather than a configuration one. The rules, in order of preference:
 4. If even a chain cannot reach it, the largest entry is used and the caller is
    warned that the remainder will be a plain resample.
 
-By default only general purpose models are considered. A specialised model, such
-as one trained for anime, carries a tag other than the default and is therefore
-never selected unless the caller explicitly asks for that tag. This keeps a
-routine photo request from silently being handed to a model tuned for artwork.
+By default only general purpose models are considered. A model trained for a
+narrower domain carries a tag other than the default and is therefore never
+selected unless the caller explicitly asks for that tag. This keeps a routine
+photo request from silently being handed to a model tuned for something else.
 """
 
 from srcli.models import registry
 
 # A model is eligible for automatic selection only if it carries this tag.
-# Specialised models deliberately omit it so they can never be picked by
-# accident, no matter how a request is phrased.
+# Narrower models deliberately omit it so they can never be picked by accident,
+# no matter how a request is phrased.
 DEFAULT_TAG = "general"
 
 
@@ -31,7 +31,7 @@ def _candidates(tags):
 
   With no tags the general purpose models are returned. With tags, only entries
   carrying at least one of them are returned, which is how a caller opts into a
-  specialised model on purpose.
+  narrower model on purpose.
   """
   entries = [registry.REGISTRY[name] for name in registry.names()]
   wanted = set(tags) if tags else {DEFAULT_TAG}

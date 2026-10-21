@@ -23,8 +23,3 @@ def build_rrdbnet_x2():
   dimensions.
   """
   return RRDBNet(num_in_ch=3, num_out_ch=3, scale=2, num_block=23)
-
-
-def build_rrdbnet_anime():
-  """Real-ESRGAN x4plus anime: a lighter six block variant for illustrations."""
-  return RRDBNet(num_in_ch=3, num_out_ch=3, scale=4, num_block=6)

@@ -63,15 +63,6 @@ REGISTRY = {
                             filename="RealESRGAN_x2plus.pth"),
             tags=["photo", "general"],
         ),
-    "realesrgan-x4plus-anime":
-        ModelEntry(
-            name="realesrgan-x4plus-anime",
-            scale=4,
-            build=builders.build_rrdbnet_anime,
-            weights=HubFile(repo_id="amd/realesrgan-x4plus-anime-6b",
-                            filename="RealESRGAN_x4plus_anime_6B.pth"),
-            tags=["anime"],
-        ),
 }
 
 

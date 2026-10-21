@@ -32,7 +32,8 @@ def _axis_weights(length, overlap, fade_start, fade_end):
   return weight
 
 
-def _tile_weight(tile_width, tile_height, overlap, at_left, at_right, at_top, at_bottom):
+def _tile_weight(tile_width, tile_height, overlap, at_left, at_right, at_top,
+                 at_bottom):
   """Combine per-axis profiles into a 2D window for one tile.
 
   The window fades only on sides that meet another tile. A side that sits on

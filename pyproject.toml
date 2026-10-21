@@ -10,12 +10,12 @@ requires-python = ">=3.9"
 dependencies = [
   "numpy",
   "pillow",
+  "torch",
+  "huggingface_hub",
 ]
 
 [project.optional-dependencies]
-gpu = ["torch"]
-hf = ["huggingface_hub"]
-dev = ["pytest", "yapf"]
+dev = ["pytest", "yapf", "ruff"]
 
 [project.scripts]
 sr = "srcli.cli:main"

@@ -1,0 +1,48 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# A failing job should not cancel the other Python versions, so the matrix
+# reports every failure rather than only the first.
+jobs:
+  lint:
+    name: ruff
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install ruff
+        run: pip install ruff
+      - name: Run ruff
+        run: ruff check srcli tests
+
+  test:
+    name: pytest (py${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # 3.10 is the floor: PyTorch dropped 3.9 at torch 2.9, so 3.9 could
+        # only ever resolve to an old torch and would not reflect what users
+        # actually run. See requires-python in pyproject.toml.
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+      # Install the CPU-only build first. The default PyPI torch wheel for
+      # Linux bundles CUDA and is an order of magnitude larger, which the tests
+      # never exercise and which would slow every run down for nothing.
+      - name: Install CPU-only PyTorch
+        run: pip install torch --index-url https://download.pytorch.org/whl/cpu
+      - name: Install package and dev tools
+        run: pip install -e ".[dev]"
+      - name: Run tests
+        run: python -m pytest tests/ -q

@@ -1,3 +1,5 @@
+import itertools
+
 import pytest
 
 from srcli import geometry
@@ -45,7 +47,7 @@ def test_axis_starts_cover_the_axis_and_anchor_last_tile():
   # The final tile must end exactly on the boundary.
   assert starts[-1] + 40 == 100
   # Every gap must be small enough that the overlap still applies.
-  for a, b in zip(starts, starts[1:]):
+  for a, b in itertools.pairwise(starts):
     assert b - a <= 30
 
 

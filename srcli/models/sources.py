@@ -34,14 +34,15 @@ def _sha256(path):
   return digest.hexdigest()
 
 
-def ensure_weights(url, filename, expected_sha256=None):
-  """Return a local path to the weights, downloading them if necessary.
+def _download_cached(filename, download, expected_sha256=None):
+  """Cache a download by filename, verifying it before it is committed.
 
-  If `expected_sha256` is given the file is verified after download and before
-  use, so a truncated or tampered download fails loudly instead of producing
-  garbage. The download lands in a temporary file first and is only moved into
-  place once complete, so an interrupted run never leaves a half written file
-  that a later run would mistake for a finished download.
+  `download` is a callable that writes the file to a path it is given. The
+  download lands in a temporary file first and is only moved into place once it
+  is complete and, when a digest is pinned, verified. A truncated or tampered
+  download therefore fails loudly instead of producing garbage, and an
+  interrupted run never leaves a half written file that a later run would
+  mistake for a finished download.
   """
   target = os.path.join(cache_dir(), filename)
   if os.path.exists(target) and (expected_sha256 is None or
@@ -52,8 +53,7 @@ def ensure_weights(url, filename, expected_sha256=None):
   handle, temp_path = tempfile.mkstemp(dir=cache_dir(), suffix=".part")
   os.close(handle)
   try:
-    with urllib.request.urlopen(url) as response, open(temp_path, "wb") as out:
-      shutil.copyfileobj(response, out)
+    download(temp_path)
     if expected_sha256 is not None:
       actual = _sha256(temp_path)
       if actual != expected_sha256:
@@ -67,6 +67,16 @@ def ensure_weights(url, filename, expected_sha256=None):
       os.remove(temp_path)
     raise
   return target
+
+
+def ensure_weights(url, filename, expected_sha256=None):
+  """Return a local path to the weights at `url`, downloading if necessary."""
+
+  def download(temp_path):
+    with urllib.request.urlopen(url) as response, open(temp_path, "wb") as out:
+      shutil.copyfileobj(response, out)
+
+  return _download_cached(filename, download, expected_sha256)
 
 
 class LocalFile:
@@ -95,6 +105,41 @@ class UrlFile:
     return ensure_weights(self.url, self.filename, self.sha256)
 
 
+class GDriveFile:
+  """Weights shared through a public Google Drive file.
+
+  Drive does not serve the bytes directly: a share link answers with an HTML
+  interstitial and a redirect that a plain HTTP client cannot follow reliably.
+  `gdown` handles that dance, so it is the only way in. The import is deferred so
+  a user who never touches Drive is not required to install it.
+
+  Google only publishes an MD5 for shared files, never a SHA256, so the digest
+  here is one we computed from the official folder and pinned by hand. It cannot
+  prove the first download was genuine, but it does mean a later swap or
+  corruption on Drive is caught rather than run.
+  """
+
+  def __init__(self, file_id, filename, state_key=DEFAULT_STATE_KEY, sha256=None):
+    self.file_id = file_id
+    self.filename = filename
+    self.state_key = state_key
+    self.sha256 = sha256
+
+  def fetch(self):
+    try:
+      import gdown
+    except ImportError as error:
+      raise ImportError("this model is hosted on Google Drive; install the optional "
+                        "dependency with: pip install 'srcli[gdrive]'") from error
+
+    def download(temp_path):
+      # gdown raises on failure in recent releases, so a bad id or an exceeded
+      # quota surfaces as an error rather than a silently empty file.
+      gdown.download(id=self.file_id, output=temp_path, quiet=True)
+
+    return _download_cached(self.filename, download, self.sha256)
+
+
 class HubFile:
   """Weights on the Hugging Face Hub.
 
@@ -104,11 +149,17 @@ class HubFile:
   required to install the client.
   """
 
-  def __init__(self, repo_id, filename, revision="main", state_key=DEFAULT_STATE_KEY):
+  def __init__(self,
+               repo_id,
+               filename,
+               revision="main",
+               state_key=DEFAULT_STATE_KEY,
+               sha256=None):
     self.repo_id = repo_id
     self.filename = filename
     self.revision = revision
     self.state_key = state_key
+    self.sha256 = sha256
 
   def fetch(self):
     try:
@@ -117,6 +168,17 @@ class HubFile:
       raise ImportError(
           "this model is hosted on the Hugging Face Hub; install the optional "
           "dependency with: pip install 'srcli[hf]'") from error
-    return hf_hub_download(repo_id=self.repo_id,
+    path = hf_hub_download(repo_id=self.repo_id,
                            filename=self.filename,
                            revision=self.revision)
+    if self.sha256 is not None:
+      # The Hub client already checks the file against its own manifest, but a
+      # pinned digest is what makes the mirror choice auditable: if the upstream
+      # repository is retagged or replaced we want to fail rather than silently
+      # run a different network.
+      actual = _sha256(path)
+      if actual != self.sha256:
+        raise ValueError(
+            f"checksum mismatch for {self.filename}: expected {self.sha256}, "
+            f"got {actual}")
+    return path

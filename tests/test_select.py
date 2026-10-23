@@ -44,3 +44,39 @@ def test_select_uses_only_general_models_when_chaining():
   plan = select.select(10)
   assert plan["models"] == ["realesrgan-x4plus", "realesrgan-x4plus"]
   assert plan["factor"] == 16
+
+
+def test_select_excludes_transformer_models_by_default():
+  # HAT is deliberately not in the default pool, so no untagged request should
+  # ever pick one.
+  for target in (2, 3, 4, 8, 16):
+    plan = select.select(target)
+    assert not any(name.startswith("hat-") for name in plan["models"])
+
+
+def test_select_transformer_tag_opts_into_hat_models():
+  # "--tag transformer" is the explicit opt-in: it swaps the pool to the HAT
+  # entries, which must then be chosen for the requested factor.
+  plan = select.select(4, tags=["transformer"])
+  assert plan["models"] == ["hat-s-x4"]
+  assert plan["factor"] == 4
+  assert plan["needs_resize"] is False
+
+
+def test_select_transformer_tag_only_reaches_transformer_models():
+  # Opting into the transformer tag must not fall back to the general pool: only
+  # tagged entries are eligible.
+  transformer = {
+      name for name in select.registry.names()
+      if "transformer" in select.registry.get(name).tags
+  }
+  for target in (2, 3, 4, 8):
+    plan = select.select(target, tags=["transformer"])
+    assert set(plan["models"]) <= transformer
+
+
+def test_select_transformer_tag_prefers_the_smaller_hat_width():
+  # When both widths provide the factor, the small one wins so the default is
+  # the cheaper HAT, matching the stable "order by name" picking rule.
+  plan = select.select(4, tags=["transformer"])
+  assert plan["models"] == ["hat-s-x4"]

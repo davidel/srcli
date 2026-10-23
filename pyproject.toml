@@ -12,10 +12,14 @@ dependencies = [
   "pillow",
   "torch",
   "huggingface_hub",
+  "einops",
 ]
 
 [project.optional-dependencies]
 dev = ["pytest", "yapf", "ruff"]
+# gdown pulls the HAT checkpoints from the official Google Drive folder. It is
+# optional because the other models never need it.
+gdrive = ["gdown"]
 
 [project.scripts]
 sr = "srcli.cli:main"

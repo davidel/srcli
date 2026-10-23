@@ -12,13 +12,40 @@ below is always the base.
 """
 
 from srcli.models import builders
-from srcli.models.sources import HubFile, UrlFile
+from srcli.models.sources import GDriveFile, HubFile, UrlFile
 
 # Weights are pulled from the Hugging Face Hub where a maintained mirror exists,
-# and from the original GitHub release assets otherwise. The GitHub release tags
-# are the historical ones the models were published under, not the repository's
-# latest release.
+# from the original GitHub release assets otherwise, and from the official
+# Google Drive folder for models that have no other maintained home. The GitHub
+# release tags are the historical ones the models were published under, not the
+# repository's latest release.
 GITHUB = "https://github.com/xinntao/Real-ESRGAN/releases/download"
+
+# HAT has no official Hugging Face repository. The upstream project publishes
+# its checkpoints through a public Google Drive folder, and the file ids below
+# are the ones from that folder. Drive gives no authoritative digest, so each
+# sha256 was computed from a download of the official folder and pinned by hand;
+# it catches a later swap or corruption on Drive, not a first-download forgery.
+HAT_ALIGNMENT = 16
+
+
+def _hat_entry(name, scale, build, filename, file_id, digest, rank):
+  """Build a registry entry for an official HAT checkpoint on Google Drive."""
+  return ModelEntry(
+      name=name,
+      scale=scale,
+      build=build,
+      weights=GDriveFile(file_id=file_id, filename=filename, sha256=digest),
+      alignment=HAT_ALIGNMENT,
+      # HAT is a large transformer and markedly heavier than the RRDB family, so
+      # it deliberately omits the "general" tag that `select` uses to build its
+      # default pool. It is chosen by name or by an explicit tag, never by
+      # accident, which keeps the automatic path fast and predictable.
+      tags=["photo", "transformer"],
+      # The small width is rank zero so it wins a tie against the large width,
+      # which is rank one. Both widths are reachable by name either way.
+      rank=rank,
+  )
 
 
 class ModelEntry:
@@ -30,7 +57,7 @@ class ModelEntry:
   width and height, which the padding step must satisfy.
   """
 
-  def __init__(self, name, scale, build, weights, alignment=None, tags=None):
+  def __init__(self, name, scale, build, weights, alignment=None, tags=None, rank=0):
     self.name = name
     self.scale = scale
     self.build = build
@@ -39,6 +66,11 @@ class ModelEntry:
     # is true for the RRDB family because of the pixel unshuffle at scale two.
     self.alignment = alignment if alignment is not None else scale
     self.tags = tags if tags is not None else []
+    # When several entries offer the same factor, selection prefers the lowest
+    # rank and only then falls back to the name. It is how a heavier variant of
+    # the same family is kept from winning a tie by accident of alphabetical
+    # order, so the cheaper model is the default and the larger one is opt-in.
+    self.rank = rank
 
 
 REGISTRY = {
@@ -62,6 +94,66 @@ REGISTRY = {
             weights=UrlFile(url=f"{GITHUB}/v0.2.1/RealESRGAN_x2plus.pth",
                             filename="RealESRGAN_x2plus.pth"),
             tags=["photo", "general"],
+        ),
+    "hat-s-x2":
+        _hat_entry(
+            name="hat-s-x2",
+            scale=2,
+            build=builders.build_hat_s_x2,
+            filename="HAT_SRx2_ImageNet-pretrain.pth",
+            file_id="11WDyK4MMcRapHs_aKJKHaYAFsb29SoCw",
+            digest="82ebd911263bcc886fbef46b30cf97b92a932a27a3cba30163d4577afb09b9d7",
+            rank=0,
+        ),
+    "hat-s-x3":
+        _hat_entry(
+            name="hat-s-x3",
+            scale=3,
+            build=builders.build_hat_s_x3,
+            filename="HAT_SRx3_ImageNet-pretrain.pth",
+            file_id="1ugC8yyya4Gcvlo01rfGYRFjcpXJ-U-Sm",
+            digest="8469db903d464497f94419587054c9e83dff994edc409d563ab8f5a503767be8",
+            rank=0,
+        ),
+    "hat-s-x4":
+        _hat_entry(
+            name="hat-s-x4",
+            scale=4,
+            build=builders.build_hat_s_x4,
+            filename="HAT_SRx4_ImageNet-pretrain.pth",
+            file_id="1cxls85ZE7kalhNy47eBJI_L_Lwf9hxRI",
+            digest="4ee053c42461187846dc0e93aa5abd34591c0725a8e044a59000e92ee215e833",
+            rank=0,
+        ),
+    "hat-l-x2":
+        _hat_entry(
+            name="hat-l-x2",
+            scale=2,
+            build=builders.build_hat_l_x2,
+            filename="HAT-L_SRx2_ImageNet-pretrain.pth",
+            file_id="16xtMezHvckdWEuSiOxcO-dgOlsI0rEUg",
+            digest="2818c7ca8d72ec4cc5f31c93203d55252a662dd35cda34ce1a69661f97dcd38f",
+            rank=1,
+        ),
+    "hat-l-x3":
+        _hat_entry(
+            name="hat-l-x3",
+            scale=3,
+            build=builders.build_hat_l_x3,
+            filename="HAT-L_SRx3_ImageNet-pretrain.pth",
+            file_id="1f0iVM1coyVx5KffUYWw9g4JB1IG0QCEc",
+            digest="78af181bedf1e805fd7517d3738bc5824f7ebdc477fc9f757b708bcf49ad4e3d",
+            rank=1,
+        ),
+    "hat-l-x4":
+        _hat_entry(
+            name="hat-l-x4",
+            scale=4,
+            build=builders.build_hat_l_x4,
+            filename="HAT-L_SRx4_ImageNet-pretrain.pth",
+            file_id="1uefIctjoNE3Tg6GTzelesTTshVogQdUf",
+            digest="5992bd38522f2b8faf11ea4bd8ee08de92465bb66892166576999afc36d60043",
+            rank=1,
         ),
 }
 

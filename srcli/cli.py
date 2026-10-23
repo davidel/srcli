@@ -22,6 +22,7 @@ SUBCOMMANDS = ("upscale", "models")
 SOURCE_LABELS = {
     "HubFile": "hf",
     "UrlFile": "url",
+    "GDriveFile": "gdrive",
     "LocalFile": "local",
 }
 

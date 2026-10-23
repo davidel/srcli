@@ -29,6 +29,17 @@ def test_list_models_reports_scale_and_source():
   assert "hf" in row
 
 
+def test_list_models_labels_google_drive_weights():
+  # The HAT checkpoints come from Google Drive, and the listing should make that
+  # distinct from the Hub and direct URL sources.
+  buffer = io.StringIO()
+  cli.list_models(stream=buffer)
+  lines = buffer.getvalue().splitlines()
+  row = next(line for line in lines if line.startswith("hat-s-x4 "))
+  assert "gdrive" in row
+  assert "transformer" in row
+
+
 def test_parser_routes_a_bare_invocation_to_upscale():
   parser = cli.build_parser()
   args = parser.parse_args(["upscale", "in.png", "-o", "out.png", "--scale", "4"])

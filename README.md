@@ -98,7 +98,7 @@ The `upscale` command is the default, so `sr photo.jpg -o out.png` and
 | `--scale` | Upscale factor, for example `4` for four times larger. |
 | `--size` | Exact output size as `WIDTHxHEIGHT`, for example `3840x2160`. |
 | `--model` | A model name, or `auto` to pick one for the requested factor. Defaults to `auto`. |
-| `--tag` | Prefer models with this tag when `--model` is `auto`. |
+| `--tag` | Prefer models with this tag when `--model` is `auto`. Repeatable, for example `--tag transformer` reaches the HAT models. |
 | `--device` | Compute device: `cpu`, `cuda` or `mps`. Detected automatically if omitted. |
 | `--fp16` | Use half precision on CUDA, to save memory and time. |
 | `--tile` | Input pixel budget before tiling kicks in. Lower values use less memory. |
@@ -170,10 +170,21 @@ weights come from, and what factor it provides. Run `sr models` to list them.
 |---|---|---|---|
 | `realesrgan-x4plus` | x4 | Hugging Face | General purpose photo model, the default for most requests. |
 | `realesrgan-x2plus` | x2 | Direct URL | Same family, native x2, useful when a gentler factor is enough. |
+| `hat-s-x2` / `hat-s-x3` / `hat-s-x4` | x2/x3/x4 | Google Drive | Hybrid Attention Transformer, small width. Higher quality on textures, heavier to run. |
+| `hat-l-x2` / `hat-l-x3` / `hat-l-x4` | x2/x3/x4 | Google Drive | Same architecture at double the depth. Best quality, slowest. |
+
+The HAT models are attention based and require the input width and height to be a
+multiple of sixteen, which the pipeline pads to automatically. They are not part
+of the automatic selection pool (they do not carry the `general` tag), so they are
+chosen by name with `--model hat-s-x4`, or by opting in with `--tag transformer`.
+When several models offer the same factor the lower ranked one wins, so the tag
+prefers the cheaper small width over the large one.
 
 Weights are cached on first use. The Hugging Face Hub models use the Hub's own
-cache and authentication; direct URL models are downloaded into a shared cache
-directory and verified if a checksum is pinned.
+cache and authentication; direct URL and Google Drive models are downloaded into a
+shared cache directory and verified against a pinned checksum. The Google Drive
+source needs the optional `gdown` dependency, installed with
+`pip install 'srcli[gdrive]'`.
 
 ### Adding a model
 

@@ -122,8 +122,13 @@ def select(target, tags=None):
 
 
 def _pick(entries):
-  """Choose one entry from a group, ordered by name so the result is stable."""
-  return min(entries, key=lambda entry: entry.name)
+  """Choose one entry from a group.
+
+  The lowest rank wins, then the name breaks any remaining tie, so the result is
+  stable. Rank lets the cheaper variant of a family win over a heavier one that
+  happens to sort first alphabetically.
+  """
+  return min(entries, key=lambda entry: (entry.rank, entry.name))
 
 
 def _plan(names, factor, target):

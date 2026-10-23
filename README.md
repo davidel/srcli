@@ -78,6 +78,49 @@ List the models the registry knows about:
 sr models
 ```
 
+## Use as a library
+
+The same upscaling logic is available from Python. `upscale` takes an input and
+output path and the same options as the command line, and returns the output
+path:
+
+```python
+from srcli.pipeline import upscale
+
+# Fixed factor, the model chosen automatically.
+upscale("photo.jpg", "photo_4x.png", scale=4)
+
+# An exact target resolution.
+upscale("photo.jpg", "photo_4k.png", target_size=(3840, 2160))
+
+# A named model and an explicit device, skipping automatic selection.
+upscale("photo.jpg", "out.png", model="hat-s-x4", device="cuda", fp16=True)
+```
+
+`scale` and `target_size` are mutually exclusive, exactly as on the command line,
+and every other argument defaults to the value the CLI would have derived. To
+pick a model by capability rather than by name, pass `tags`:
+
+```python
+upscale("photo.jpg", "out.png", scale=4, tags=["transformer"])
+```
+
+For a custom pipeline the lower level pieces are importable too. `load_image`
+returns a three channel tensor and `save_image` writes one back out; `load_by_name`
+returns a runnable model whose `upscale` expects a tensor already padded to the
+model's `alignment`:
+
+```python
+from srcli.io import load_image, save_image
+from srcli.models.loader import load_by_name
+
+model = load_by_name("hat-s-x4", device="cuda")
+print(model.scale, model.alignment)
+```
+
+Most callers want `srcli.pipeline.upscale` above, which handles the padding, the
+`no_grad` context and the final resample for you.
+
 ## Usage
 
 ```
@@ -125,6 +168,19 @@ x16 and then resamples to x10:
 
 ```bash
 sr photo.jpg -o photo_10x.png --scale 10
+```
+
+Run a specific model by name:
+
+```bash
+sr photo.jpg -o out.png --model hat-s-x4
+```
+
+Let `auto` select within a capability rather than a fixed model; the `transformer`
+tag picks the cheaper small HAT and skips the large one:
+
+```bash
+sr photo.jpg -o out.png --scale 4 --tag transformer
 ```
 
 ## How it works
@@ -191,6 +247,35 @@ source needs the optional `gdown` dependency, installed with
 Adding a model that shares an existing architecture is one registry entry.
 Adding a new architecture is a builder function plus an entry. Nothing in the
 pipeline, the tiling code or the command line needs to change.
+
+Point the entry at a builder, a weight source and the factor those weights
+provide:
+
+```python
+# srcli/models/registry.py
+"my-model-x4":
+    ModelEntry(
+        name="my-model-x4",
+        scale=4,
+        build=builders.build_my_model_x4,
+        weights=HubFile(
+            repo_id="owner/repo",
+            filename="my-model-x4.pth",
+        ),
+        alignment=16,
+    ),
+```
+
+A model with a new architecture also needs a builder that returns the network:
+
+```python
+# srcli/models/builders.py
+def build_my_model_x4():
+  return MyModel(upscale=4)
+```
+
+Once the entry is registered, `sr models` lists it, `--model my-model-x4` runs it,
+and any tag it carries makes it eligible for `--tag`.
 
 ## Performance
 
